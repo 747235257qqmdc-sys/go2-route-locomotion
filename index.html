@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Go2 Route Locomotion</title>
+<meta name="description" content="Rough-terrain locomotion for the Unitree Go2 with an emulated L1 LiDAR elevation map: trained in Isaac Lab, validated sim-to-sim in MuJoCo through Unitree SDK2 and ROS 2.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #F6F5F0; --panel: #FDFCF9; --ink: #172033; --text: #3D4656; --muted: #5B6472; --line: #D9D6CC;
+  --accent: #B4501A; --accent-soft: #EFE6DA; --hero: #172033; --hero-ink: #F6F5F0; --hero-text: #C9D1DE; --hero-accent: #F0A56E;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121826; --panel: #1A2233; --ink: #EEF0F3; --text: #C3CAD6; --muted: #98A2B3; --line: #2D3850;
+    --accent: #F0A56E; --accent-soft: #2A2620; --hero: #0D1220;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121826; --panel: #1A2233; --ink: #EEF0F3; --text: #C3CAD6; --muted: #98A2B3; --line: #2D3850;
+  --accent: #F0A56E; --accent-soft: #2A2620; --hero: #0D1220;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 'IBM Plex Sans', Arial, sans-serif; }
+h1, h2, h3 { color: var(--ink); line-height: 1.2; margin: 0; }
+h2 { font-size: 30px; font-weight: 600; margin-bottom: 14px; }
+h3 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+.mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+header.hero { background: var(--hero); color: var(--hero-text); padding: 56px 0 48px; }
+.hero h1 { color: var(--hero-ink); font-size: clamp(30px, 5vw, 48px); font-weight: 600; max-width: 900px; }
+.hero .eyebrow { color: var(--hero-accent); font-size: 14px; letter-spacing: 2px; margin-bottom: 14px; }
+.hero .lede { font-size: 19px; max-width: 860px; margin: 16px 0 28px; }
+.hero video { width: 100%; border-radius: 12px; display: block; background: #000; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 26px; }
+.stat { border: 1px solid #2D3850; border-radius: 12px; padding: 14px 16px; }
+.stat b { display: block; color: var(--hero-ink); font-size: 26px; font-weight: 600; }
+.stat span { font-size: 14px; }
+nav.toc { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+nav.toc .wrap { display: flex; gap: 18px; overflow-x: auto; padding-top: 10px; padding-bottom: 10px; white-space: nowrap; font-size: 15px; }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover { color: var(--accent); }
+section { padding: 52px 0 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.card.dark { background: var(--hero); border-color: var(--hero); color: var(--hero-text); }
+.card.dark h3 { color: var(--hero-ink); }
+.label { color: var(--accent); font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+.card.dark .label { color: var(--hero-accent); }
+ul { margin: 0; padding-left: 20px; }
+li { margin-bottom: 6px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 16px; background: var(--panel); border-radius: 12px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--ink); font-weight: 600; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.main td { background: var(--accent-soft); }
+.note { font-size: 15px; color: var(--muted); }
+.flow { display: flex; align-items: stretch; gap: 10px; }
+.flow .card { flex: 1; }
+.arrow { align-self: center; color: var(--accent); font-size: 28px; }
+figure { margin: 0; }
+figure video, figure img { width: 100%; border-radius: 10px; display: block; background: #0D1220; }
+figcaption { font-size: 15px; color: var(--muted); margin-top: 8px; }
+footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
+@media (max-width: 860px) {
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .grid4, .stats { grid-template-columns: 1fr 1fr; }
+  .flow { flex-direction: column; }
+  .arrow { transform: rotate(90deg); }
+}
+</style>
+</head>
+<body>
+<header class="hero">
+<div class="wrap">
+<p class="eyebrow mono">PROJECT PAGE · OCTOBER 2026</p>
+<h1>Rough-terrain locomotion for the Unitree Go2, guided by an L1 LiDAR elevation map</h1>
+<p class="lede">A reinforcement-learning controller for an inspection route with stairs, kerbs, ramps, rough ground and thresholds. Trained in Isaac Lab; validated sim-to-sim in MuJoCo through the Unitree SDK2 low-level interface, a C++ controller, ROS 2 <span class="mono">/cmd_vel</span> and an emulated L1 LiDAR map built with the same sensor model as in training.</p>
+<video controls preload="metadata" poster="media/still_route.jpg" aria-label="Demo video: continuous route, close-ups, foot forces and a missing-map comparison in MuJoCo">
+<source src="media/demo.mp4" type="video/mp4">
+</video>
+<div class="stats">
+<div class="stat"><b>13 / 13</b><span>main MuJoCo conditions crossed, no fall</span></div>
+<div class="stat"><b>5 / 5</b><span>runs over the 34.5 m continuous route</span></div>
+<div class="stat"><b>0.968</b><span>Isaac Lab pass rate on spec terrain</span></div>
+<div class="stat"><b>SDK2 + ROS 2</b><span>same interfaces as the real robot</span></div>
+</div>
+</div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+<div class="wrap">
+<a href="#task">Task</a><a href="#system">System</a><a href="#perception">Perception</a><a href="#training">Training</a><a href="#results">Results</a><a href="#closeups">Close-ups</a><a href="#forces">Foot forces</a><a href="#gap">Isaac vs MuJoCo</a><a href="#limits">Limits</a><a href="#repro">Reproducibility</a>
+</div>
+</nav>
+
+<main class="wrap">
+
+<section id="task">
+<h2>Task</h2>
+<div class="grid2">
+<div class="table-wrap">
+<table>
+<tr><th>Terrain on the route</th><th>Specification</th></tr>
+<tr><td>Stairs, up and down</td><td>rise ≤ 15 cm, tread ≥ 25 cm</td></tr>
+<tr><td>Kerbs</td><td>≤ 12 cm</td></tr>
+<tr><td>Ramps</td><td>≤ 20°</td></tr>
+<tr><td>Rough ground</td><td>± 5 cm</td></tr>
+<tr><td>Thresholds and cable covers</td><td>≤ 5 cm</td></tr>
+</table>
+</div>
+<div class="card">
+<h3>Ground rules</h3>
+<ul>
+<li>the policy sees only what a sensor model produced; ground truth only in the critic</li>
+<li>sim-to-sim: the exported policy runs in a C++ controller talking Unitree SDK2 LowCmd / LowState to unitree_mujoco</li>
+<li>commands over ROS 2 Humble <span class="mono">/cmd_vel</span>, ≥ 10 Hz, 0.5 s without a message means stop</li>
+<li>perception emulated with the same sensor model; late, partially invalid and missing maps tested</li>
+<li>the same metrics in both simulators, differences explained</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="system">
+<h2>System</h2>
+<div class="flow">
+<div class="card"><p class="label mono">1 · Train</p><h3>Isaac Lab</h3><p>4096 robots, a 10-row curriculum per terrain type, the L1 map model in the loop, a privileged critic.</p></div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="card"><p class="label mono">2 · Export</p><h3>ONNX + deploy config</h3><p>Recurrent policy with its GRU state as an input; ONNX matches PyTorch within 3e-6.</p></div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="card dark"><p class="label mono">3 · Run (Docker)</p><h3>C++ controller ↔ unitree_mujoco</h3>
+<ul><li>SDK2 over DDS, 50 Hz policy</li><li>ROS 2 /cmd_vel bridge with clamping and a watchdog</li><li>L1 map emulator: the training code on the scene, UDP to the controller</li></ul></div>
+</div>
+<p class="note" style="margin-top:14px">Observation matching: the same robot state and terrain give the same policy input in both simulators (proprioception within 6e-8, map differences only at terrain edges).</p>
+</section>
+
+<section id="perception">
+<h2>Perception</h2>
+<div class="grid2">
+<div>
+<h3>The map the policy sees</h3>
+<ul>
+<li>5 channels × 20 × 32 cells of 5 cm: 1.6 m × 1.0 m around the robot, aligned with its heading</li>
+<li>mean height, top, unknown, upper bound of hidden cells, age</li>
+<li>plus 45 proprioceptive values: IMU, joints, last action, command</li>
+<li>on the real robot: L1 point cloud → LIO → elevation map → adapter → the same layout</li>
+</ul>
+</div>
+<div class="card">
+<h3>L1 sensor model, randomised per episode</h3>
+<ul>
+<li>rays cast in the scene: occlusion and only what the sensor can see</li>
+<li>21,600 points/s × 0.5–1, frames at 10–16 Hz</li>
+<li>latency 40–120 ms, 1–3 % dropped frames, outages of 0.3–1 s</li>
+<li>odometry drift as the robot walks</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="training">
+<h2>Policies and training</h2>
+<div class="grid4">
+<div class="card"><h3>Blind</h3><p>proprioception with 5 steps of history; the baseline and the fallback without perception</p></div>
+<div class="card"><h3>Teacher</h3><p>noise-free terrain samples around each foot; training only</p></div>
+<div class="card dark"><h3>Distilled student</h3><p>CNN on the L1 map + GRU, imitating the teacher on the noisy map: the main policy</p></div>
+<div class="card"><h3>Direct PPO student</h3><p>the same network and input trained with PPO from scratch, as a control for distillation</p></div>
+</div>
+<p style="margin-top:16px">Shared recipe: Isaac Lab’s Go2 rough-terrain rewards plus route terms (swing clearance, a force-graded cost for kicking thresholds, standing still on a zero command), penalties scaled in over training, and randomised friction, mass, pushes and joint friction. 39 documented changes, each made in response to an observed failure.</p>
+</section>
+
+<section id="results">
+<h2>Results</h2>
+<h3>Isaac Lab</h3>
+<div class="table-wrap">
+<table>
+<tr><th>Policy</th><th class="n">Pass rate</th><th class="n">Threshold kicks / m</th><th class="n">No map at all</th></tr>
+<tr class="main"><td><b>Distilled student (main)</b></td><td class="n"><b>0.968</b></td><td class="n">0.56</td><td class="n">0.85</td></tr>
+<tr><td>Direct PPO student</td><td class="n">0.964</td><td class="n">0.75</td><td class="n">0.82</td></tr>
+<tr><td>Direct PPO + step-over terms (fine-tune)</td><td class="n">0.958</td><td class="n">0.58</td><td class="n">0.82</td></tr>
+<tr><td>Direct PPO + step-over terms (scratch)</td><td class="n">0.951</td><td class="n">0.50</td><td class="n">0.86</td></tr>
+<tr><td>Blind</td><td class="n">0.922</td><td class="n">0.67</td><td class="n">—</td></tr>
+</table>
+</div>
+<p class="note">Pass rate: share of robots crossing the tile at the spec level and beyond, averaged over forward 0.3 / 0.6 / 1.0, backward 0.6 and lateral 0.4 m/s. Kicks: contacts with a threshold’s face per metre at 0.6 m/s. No map: mean pass rate on 8 terrains with every map cell unknown.</p>
+<h3 style="margin-top:22px">MuJoCo, 5 runs per condition</h3>
+<div class="table-wrap">
+<table>
+<tr><th>Test</th><th class="n">Distilled student</th><th class="n">Direct PPO</th><th class="n">Blind</th></tr>
+<tr class="main"><td>13 main conditions all crossed · falls</td><td class="n"><b>13 · 0</b></td><td class="n">12 · 1</td><td class="n">10 · 6</td></tr>
+<tr><td>Stairs at 1.0 m/s</td><td class="n">5/5</td><td class="n">5/5</td><td class="n">1/5, 4 falls</td></tr>
+<tr><td>Continuous route, 34.5 m</td><td class="n">5/5</td><td class="n">3/5</td><td class="n">5/5</td></tr>
+<tr><td>Stop-and-go, stops on the stair flights</td><td class="n">2/5</td><td class="n">5/5</td><td class="n">4/5</td></tr>
+<tr><td>Speed under a 0.5 m/s command</td><td class="n">0.35 m/s</td><td class="n">0.39 m/s</td><td class="n">0.42 m/s</td></tr>
+<tr><td>Map 0.3 s late · right half invalid</td><td class="n">15/15 · 15/15</td><td class="n">15/15 · 15/15</td><td class="n">—</td></tr>
+</table>
+</div>
+<p class="note">Main conditions: six terrains forward, four backward, three at 1.0 m/s; ground friction 0.8; lane keeping from the pose. Runs broken by a stalled compute node are detected and repeated.</p>
+</section>
+
+<section id="closeups">
+<h2>Close-ups</h2>
+<div class="grid3">
+<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Go2 climbing and descending 15 cm stairs"><source src="media/stairs.mp4" type="video/mp4"></video><figcaption>Stairs 15 cm / 25 cm, up and down (2× speed)</figcaption></figure>
+<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Side view of the Go2 stepping up a 12 cm kerb"><source src="media/kerb_side.mp4" type="video/mp4"></video><figcaption>Stepping up a 12 cm kerb, side view (real time)</figcaption></figure>
+<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Side view of the Go2 walking over 5 cm thresholds"><source src="media/thresholds_side.mp4" type="video/mp4"></video><figcaption>5 cm thresholds, side view (real time): touched gently, not yet stepped over cleanly</figcaption></figure>
+</div>
+</section>
+
+<section id="forces">
+<h2>Foot contact forces</h2>
+<p>The simulator fills each foot’s normal contact force into the SDK2 state, the field the real robot’s foot sensors use. The sum over the four feet averages 150 N, the robot’s weight. Going up, the hind legs push; going down, the front legs brake with longer stance.</p>
+<div class="grid2">
+<figure><img src="media/foot_forces_route.jpg" alt="Contact forces of the four feet over the whole continuous route, with the terrain sections marked" loading="lazy"><figcaption>Whole route; shaded bands mark kerb, thresholds, rough ground, ramp and stairs</figcaption></figure>
+<figure><img src="media/foot_forces_stairs.jpg" alt="Contact forces of the four feet on the stairs with a gait diagram" loading="lazy"><figcaption>Stairs section with a gait diagram (foot in contact = force above 10 N)</figcaption></figure>
+</div>
+</section>
+
+<section id="gap">
+<h2>Isaac Lab vs MuJoCo</h2>
+<div class="grid2">
+<div>
+<p>With the same terrain, commands and metrics, success in MuJoCo falls between the two Isaac difficulty rows that bracket the spec, for every policy at 0.5 m/s. Speed, however, is lower in MuJoCo for every policy.</p>
+<p>Changing one factor at a time found the cause: unitree’s MuJoCo model gives the feet torsional (0.02 m) and rolling (0.01 m) friction, which the physics engine used in training does not have. Turning twists the feet and side steps roll them.</p>
+</div>
+<div class="table-wrap">
+<table>
+<tr><th>Flat-ground tracking</th><th class="n">go2.xml</th><th class="n">without foot torsion / rolling</th><th class="n">Isaac Lab</th></tr>
+<tr><td>forward</td><td class="n">70–85 %</td><td class="n">92–93 %</td><td class="n">92–94 %</td></tr>
+<tr><td>lateral</td><td class="n">37–60 %</td><td class="n">74–81 %</td><td class="n">77–85 %</td></tr>
+<tr><td>turn in place</td><td class="n">32–64 %</td><td class="n">98–100 %</td><td class="n">97–99 %</td></tr>
+</table>
+<p class="note">Ranges over the blind, direct PPO and distilled policies.</p>
+</div>
+</div>
+</section>
+
+<section id="limits">
+<h2>Limits and next steps</h2>
+<div class="grid2">
+<div class="card">
+<h3>Restarting on a down flight</h3>
+<p>Stopped on descending stairs, the distilled student stayed standing under a 0.4 m/s command in 2 of 5 runs. A navigation stack should not command stops on stair flights.</p>
+</div>
+<div class="card">
+<h3>No map at all</h3>
+<p>Without any map the distilled student keeps climbing blind (one fall in 5 runs); the direct PPO student stops before the stairs.</p>
+</div>
+</div>
+<div class="grid2" style="margin-top:20px">
+<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Distilled student on stairs without a map, climbing and losing balance"><source src="media/no_map_student.mp4" type="video/mp4"></video><figcaption>No map, distilled student (2× speed)</figcaption></figure>
+<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Direct PPO student stopping before the stairs without a map"><source src="media/no_map_ppo.mp4" type="video/mp4"></video><figcaption>No map, direct PPO student (2× speed)</figcaption></figure>
+</div>
+<div class="grid2" style="margin-top:20px">
+<div class="card dark">
+<p class="label mono">Proposal</p>
+<h3>A perception gate</h3>
+<p>Between navigation and the policies: if the map is stale or mostly unknown ahead, switch to the blind policy at ≤ 0.5 m/s and report a degraded mode. The blind policy crosses every route terrain at 0.5 m/s in MuJoCo. Not implemented yet.</p>
+</div>
+<div class="card">
+<h3>Stepping over thresholds</h3>
+<p>All perception policies meet thresholds gently but still touch them. Penalty-only training cut forward contacts by 15–30 %, not to zero, in line with published work. The next step gives the policy explicit structure: a commanded swing height that navigation raises before a threshold.</p>
+</div>
+</div>
+</section>
+
+<section id="repro">
+<h2>Reproducibility and tools</h2>
+<div class="grid3">
+<div class="card"><h3>Reproduce</h3><p>The sim-to-sim stack builds as a Docker image; the README steps are re-run on a clean GitHub-hosted runner on every change to the controller or simulator. Every training run keeps its command, commit and full configuration.</p></div>
+<div class="card"><h3>Code</h3><p>The code repository (Isaac Lab extension, C++ controller, perception emulator, scenes, evaluation scripts, exported policies) is private and available on request.</p></div>
+<div class="card"><h3>AI tools</h3><p>Claude did the engineering under my decisions; Codex drafted the proposal text. Cases where a tool was wrong are logged with how they were caught.</p></div>
+</div>
+</section>
+
+</main>
+<footer class="wrap">
+<p>Unitree Go2 EDU · Isaac Sim 5.1 / Isaac Lab · MuJoCo 3.3 · Unitree SDK2 · ROS 2 Humble · October 2026</p>
+</footer>
+</body>
+</html>
