@@ -269,7 +269,7 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 </div>
 <div class="card">
 <h3>Stepping over thresholds</h3>
-<p>All perception policies meet thresholds gently but still touch them. Penalty-only training cut forward contacts by 15–30 %, not to zero, in line with published work. The next step gives the policy explicit structure: a commanded swing height that navigation raises before a threshold.</p>
+<p>All perception policies meet thresholds gently but still touch them. Penalty-only training cut forward contacts by 15–30 %, not to zero, in line with published work. A commanded swing height (after Walk These Ways) was tried next and not adopted: after three runs it still climbed far behind the policy without it (stairs-up curriculum level 0.63 vs 3.89 at the same iteration), with no sign of fewer threshold kicks. Stepping over stays open; the other routes in the literature are a swing trajectory generator or planned footholds.</p>
 </div>
 </div>
 </section>
