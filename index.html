@@ -176,7 +176,7 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <div class="card dark"><h3>Distilled student</h3><p>CNN on the L1 map + GRU, imitating the teacher on the noisy map: the main policy</p></div>
 <div class="card"><h3>Direct PPO student</h3><p>the same network and input trained with PPO from scratch, as a control for distillation</p></div>
 </div>
-<p style="margin-top:16px">Shared recipe: Isaac Lab’s Go2 rough-terrain rewards plus route terms (swing clearance, a force-graded cost for kicking thresholds, standing still on a zero command), penalties scaled in over training, and randomised friction, mass, pushes and joint friction. 39 documented changes, each made in response to an observed failure.</p>
+<p style="margin-top:16px">Shared recipe: Isaac Lab’s Go2 rough-terrain rewards plus route terms (swing clearance, a force-graded cost for kicking thresholds, standing still on a zero command), penalties scaled in over training, and randomised friction, mass, pushes and joint friction. 39 documented changes, each with its reason and evidence: many answered a failure seen in training or evaluation, others were design choices or requirements of the task.</p>
 </section>
 
 <section id="results">
@@ -203,6 +203,7 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <tr><td>Stop-and-go, stops on the stair flights</td><td class="n">2/5</td><td class="n">5/5</td><td class="n">4/5</td></tr>
 <tr><td>Speed under a 0.5 m/s command</td><td class="n">0.35 m/s</td><td class="n">0.39 m/s</td><td class="n">0.42 m/s</td></tr>
 <tr><td>Map 0.3 s late · right half invalid</td><td class="n">15/15 · 15/15</td><td class="n">15/15 · 15/15</td><td class="n">—</td></tr>
+<tr><td>No map at all (stairs, kerb, thresholds) · falls</td><td class="n">10/15 · 1</td><td class="n">10/15 · 0</td><td class="n">—</td></tr>
 </table>
 </div>
 <p class="note">Main conditions: six terrains forward, four backward, three at 1.0 m/s; ground friction 0.8; lane keeping from the pose. Runs broken by a stalled compute node are detected and repeated.</p>
@@ -230,7 +231,7 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <h2>Isaac Lab vs MuJoCo</h2>
 <div class="grid2">
 <div>
-<p>With the same terrain, commands and metrics, success in MuJoCo falls between the two Isaac difficulty rows that bracket the spec, for every policy at 0.5 m/s. Speed, however, is lower in MuJoCo for every policy.</p>
+<p>With the same terrain, commands and metrics, MuJoCo success at 0.5 m/s lies between the two Isaac difficulty rows that bracket the spec for every policy and terrain, apart from three single failures in 5 runs (blind on rough ground backward, direct PPO on the kerb, one blind fall on flat ground after 40 s of walking), which at 5 runs against 16 robots per tile are not a significant difference. Speed, however, is lower in MuJoCo for every policy.</p>
 <p>Changing one factor at a time found the cause: unitree’s MuJoCo model gives the feet torsional (0.02 m) and rolling (0.01 m) friction, which the physics engine used in training does not have. Turning twists the feet and side steps roll them.</p>
 </div>
 <div class="table-wrap">
@@ -259,7 +260,7 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 </div>
 <div class="grid2" style="margin-top:20px">
 <figure><video autoplay muted loop playsinline preload="metadata" aria-label="Distilled student on stairs without a map, climbing and losing balance"><source src="media/no_map_student.mp4" type="video/mp4"></video><figcaption>No map, distilled student (2× speed)</figcaption></figure>
-<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Direct PPO student stopping before the stairs without a map"><source src="media/no_map_ppo.mp4" type="video/mp4"></video><figcaption>No map, direct PPO student (2× speed)</figcaption></figure>
+<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Direct PPO student without a map, stepping against the first stair riser without climbing"><source src="media/no_map_ppo.mp4" type="video/mp4"></video><figcaption>No map, direct PPO student (2× speed)</figcaption></figure>
 </div>
 <div class="grid2" style="margin-top:20px">
 <div class="card dark">
@@ -277,9 +278,18 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <section id="repro">
 <h2>Reproducibility and tools</h2>
 <div class="grid3">
-<div class="card"><h3>Reproduce</h3><p>The sim-to-sim stack builds as a Docker image; the README steps are re-run on a clean GitHub-hosted runner on every change to the controller or simulator. Every training run keeps its command, commit and full configuration.</p></div>
+<div class="card"><h3>Reproduce</h3><p>The sim-to-sim stack builds as a Docker image; the README steps are re-run on a clean GitHub-hosted runner on every change to the controller or simulator. Each exported policy retrains from scratch with one command, on a Slurm cluster or on one GPU machine, and the checkpoint of every training stage is released. Every training run keeps its command, commit and full configuration.</p></div>
 <div class="card"><h3>Code</h3><p>The code repository (Isaac Lab extension, C++ controller, perception emulator, scenes, evaluation scripts, exported policies) is private and available on request.</p></div>
 <div class="card"><h3>AI tools</h3><p>Claude did the engineering under my decisions; Codex drafted the proposal text. Cases where a tool was wrong are logged with how they were caught.</p></div>
+</div>
+<div class="card" style="margin-top:20px">
+<h3>Retrained from scratch</h3>
+<p>All three policies were trained again from scratch with the same commands and seed. GPU training is not bit-wise repeatable, so a retrain is a new sample of the same recipe:</p>
+<ul>
+<li>the direct PPO student came out at the same level (Isaac pass rate 0.956–0.968 over its shortlisted checkpoints vs 0.964; in MuJoCo 13/13 main conditions, no fall)</li>
+<li>the blind policy’s pass rate fell inside the original’s spread (0.888–0.900 over its shortlisted checkpoints vs 0.878–0.922), but it climbs stairs less reliably: 3 of 5 continuous-route runs fell at the first step</li>
+<li>the teacher came out weaker on stairs: its refit to the final rewards stalled for about 2000 iterations and was still recovering at the end, whereas the original refit at that step recovered within a few hundred iterations. The step is fragile: 3 of the 4 original teacher refits to these rewards collapsed. Restarting that step from the released checkpoint gave the original teacher again (pass rate 0.966 vs 0.964), and distilling again from the released teacher gave the original student (0.972 vs 0.968)</li>
+</ul>
 </div>
 </section>
 
