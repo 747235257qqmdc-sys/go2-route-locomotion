@@ -216,6 +216,10 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <figure><video autoplay muted loop playsinline preload="metadata" aria-label="Side view of the Go2 stepping up a 12 cm kerb"><source src="media/kerb_side.mp4" type="video/mp4"></video><figcaption>Stepping up a 12 cm kerb, side view (real time)</figcaption></figure>
 <figure><video autoplay muted loop playsinline preload="metadata" aria-label="Side view of the Go2 walking over 5 cm thresholds"><source src="media/thresholds_side.mp4" type="video/mp4"></video><figcaption>5 cm thresholds, side view (real time): touched gently, not yet stepped over cleanly</figcaption></figure>
 </div>
+<div class="grid2" style="margin-top:20px">
+<figure><video autoplay muted loop playsinline preload="metadata" aria-label="Rear view of the Go2 walking along a 12 cm kerb with its left feet on the kerb and its right feet on the ground"><source src="media/kerb_straddle.mp4" type="video/mp4"></video><figcaption>Along a 12 cm kerb, left feet up and right feet down, rear view (2× speed)</figcaption></figure>
+<div class="card"><h3>Walking along a kerb edge</h3><p>An extra MuJoCo test (27 October, 5 runs per policy): a 12 cm kerb runs along the route with its edge on the route line, so the robot walks with its left feet on the kerb and its right feet on the ground. All three policies walked the 10 m section in 5 of 5 runs without falling, the base within 13 cm of the edge, so each pair of legs stayed on its side; the body tilts with the kerb by 6–9°. The distilled student sways the most here: its body roll and pitch rate is 47 °/s, against 21 °/s on flat ground (direct PPO 26 °/s, blind 35 °/s).</p></div>
+</div>
 </section>
 
 <section id="forces">
