@@ -231,7 +231,7 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <h2>Isaac Lab vs MuJoCo</h2>
 <div class="grid2">
 <div>
-<p>With the same terrain, commands and metrics, MuJoCo success at 0.5 m/s lies between the two Isaac difficulty rows that bracket the spec for every policy and terrain, apart from three single failures in 5 runs (blind on rough ground backward, direct PPO on the kerb, one blind fall on flat ground after 40 s of walking), which at 5 runs against 16 robots per tile are not a significant difference. Speed, however, is lower in MuJoCo for every policy.</p>
+<p>With the same terrain, commands and metrics, MuJoCo success is no lower than the harder of the two Isaac difficulty rows that bracket the spec in every condition but three: two single failures in 5 runs that show signs of a test-harness glitch (direct PPO on the kerb, blind on rough ground backward) and the blind policy on stairs at 1.0 m/s (1 of 5; the MuJoCo stairs have narrower treads). At 5 runs against 16 robots per tile, single-run differences are not significant. Speed, however, is lower in MuJoCo for every policy (MuJoCo / Isaac 0.80–0.88).</p>
 <p>Changing one factor at a time found the cause: unitree’s MuJoCo model gives the feet torsional (0.02 m) and rolling (0.01 m) friction, which the physics engine used in training does not have. Turning twists the feet and side steps roll them.</p>
 </div>
 <div class="table-wrap">
@@ -278,17 +278,17 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <section id="repro">
 <h2>Reproducibility and tools</h2>
 <div class="grid3">
-<div class="card"><h3>Reproduce</h3><p>The sim-to-sim stack builds as a Docker image; the README steps are re-run on a clean GitHub-hosted runner on every change to the controller or simulator. Each exported policy retrains from scratch with one command, on a Slurm cluster or on one GPU machine, and the checkpoint of every training stage is released. Every training run keeps its command, commit and full configuration.</p></div>
+<div class="card"><h3>Reproduce</h3><p>The sim-to-sim stack builds as a Docker image; the README steps are re-run on a clean GitHub-hosted runner on every change to the controller or simulator. Each exported policy retrains from scratch with one command, on a Slurm cluster or on one GPU machine, and the checkpoint of every training stage is released. The training environment installs with one script, also packaged as a Dockerfile; the install was tested in a fresh Ubuntu container. Every training run keeps its command, commit and full configuration.</p></div>
 <div class="card"><h3>Code</h3><p>The code repository (Isaac Lab extension, C++ controller, perception emulator, scenes, evaluation scripts, exported policies) is private and available on request.</p></div>
 <div class="card"><h3>AI tools</h3><p>Claude did the engineering under my decisions; Codex drafted the proposal text. Cases where a tool was wrong are logged with how they were caught.</p></div>
 </div>
 <div class="card" style="margin-top:20px">
 <h3>Retrained from scratch</h3>
-<p>All three policies were trained again from scratch with the same commands and seed. GPU training is not bit-wise repeatable, so a retrain is a new sample of the same recipe:</p>
+<p>All three policies were trained again from scratch with the same commands and seed, using the current code. The reruns differ from the originals because the training code changed after the original runs; with each stage’s original commit, the teacher and blind stages repeat their original runs value for value (checked over their first iterations), while the map-CNN students vary from run to run. A retrain is therefore compared by level, with checkpoints picked as for the originals (shortlist from the curves, then the Isaac probes):</p>
 <ul>
-<li>the direct PPO student came out at the same level (Isaac pass rate 0.956–0.968 over its shortlisted checkpoints vs 0.964; in MuJoCo 13/13 main conditions, no fall)</li>
-<li>the blind policy’s pass rate fell inside the original’s spread (0.888–0.900 over its shortlisted checkpoints vs 0.878–0.922), but it climbs stairs less reliably: 3 of 5 continuous-route runs fell at the first step</li>
-<li>the teacher came out weaker on stairs: its refit to the final rewards stalled for about 2000 iterations and was still recovering at the end, whereas the original refit at that step recovered within a few hundred iterations. The step is fragile: 3 of the 4 original teacher refits to these rewards collapsed. Restarting that step from the released checkpoint gave the original teacher again (pass rate 0.966 vs 0.964), and distilling again from the released teacher gave the original student (0.972 vs 0.968)</li>
+<li>the direct PPO student came out at the same level (Isaac pass rate 0.956–0.968 over its shortlisted checkpoints vs 0.950–0.964; in MuJoCo 13/13 main conditions with no fall, continuous route 5/5)</li>
+<li>the blind policy’s pass rate fell inside the original’s spread (0.888–0.900 over its shortlisted checkpoints vs 0.878–0.922), but it climbs stairs up less reliably. Its selected checkpoint matches the original in MuJoCo (10/13 main conditions, route 5/5); its final checkpoint fell at the first step in 3 of 5 route runs</li>
+<li>the teacher came out weaker on stairs: its refit to the final rewards stalled for about 2000 iterations and was still recovering at the end, whereas the original refit at that step recovered within a few hundred iterations. The step is fragile: 3 of the 4 original teacher refits to these rewards collapsed. Running that refit twice as long reached the original level (0.968 vs 0.964). Restarting it from the released checkpoint gave the original teacher again (0.966), and distilling again from the released teacher gave the original student (0.972 vs 0.968). The student distilled from the weaker teacher stayed below the original (0.904 vs 0.968; in MuJoCo 11/13 main conditions, route 2/5)</li>
 </ul>
 </div>
 </section>
