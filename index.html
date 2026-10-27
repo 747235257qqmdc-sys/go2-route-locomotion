@@ -231,7 +231,7 @@ footer { padding: 40px 0 56px; font-size: 14px; color: var(--muted); }
 <h2>Isaac Lab vs MuJoCo</h2>
 <div class="grid2">
 <div>
-<p>With the same terrain, commands and metrics, MuJoCo success is no lower than the harder of the two Isaac difficulty rows that bracket the spec in every condition but three: two single failures in 5 runs that show signs of a test-harness glitch (direct PPO on the kerb, blind on rough ground backward) and the blind policy on stairs at 1.0 m/s (1 of 5; the MuJoCo stairs have narrower treads). At 5 runs against 16 robots per tile, single-run differences are not significant. Speed, however, is lower in MuJoCo for every policy (MuJoCo / Isaac 0.80–0.88).</p>
+<p>With the same terrain, commands and metrics, MuJoCo success is no lower than the harder of the two Isaac difficulty rows that bracket the spec in every condition but three: two single failures in 5 runs that show signs of a test-harness glitch (direct PPO on the kerb, blind on rough ground backward) and the blind policy on stairs at 1.0 m/s (1 of 5; the MuJoCo stairs have narrower treads). At 5 runs against 16 robots per tile, single-run differences are not significant. Speed, however, is lower in MuJoCo for every policy (MuJoCo / Isaac 0.80–0.87).</p>
 <p>Changing one factor at a time found the cause: unitree’s MuJoCo model gives the feet torsional (0.02 m) and rolling (0.01 m) friction, which the physics engine used in training does not have. Turning twists the feet and side steps roll them.</p>
 </div>
 <div class="table-wrap">
